@@ -1,6 +1,7 @@
-import React, {useState} from 'react'
-import {isEmpty, size} from 'lodash'
+import React, {useState, useEffect} from 'react'
+import {isEmpty, result, size} from 'lodash'
 import shortid from 'shortid'
+import { addDocument, deleteDocument, getColletion, updateDocument } from './actions'
 
 
 function App() {
@@ -9,6 +10,15 @@ function App() {
   const [editMode, setEditMode] = useState(false)
   const [id, setId] = useState("")
   const [error, setError] = useState(null)
+
+  useEffect(() => {
+    (async () => {
+      const result = await getColletion("Tasks")
+      if(result.statusResponse){
+        setTasks(result.data)
+      }
+    })()
+  }, [])//se ejecuta cuando la pagina cargue
 
   const validForm = () => {
     let isValid = true
@@ -21,26 +31,40 @@ function App() {
   }
 
 
-  const addTask = (e) =>{
+  const addTask = async(e) =>{
     e.preventDefault() //Para que no recargue la pagina con el submit
 
     if(!validForm()) {
       return
     }
-    const newTask = {//creamos un tipo objeto
-      id: shortid.generate(),
-      name: task
-  }
 
-    setTasks([ ...tasks, newTask])
+    const result = await addDocument("Tasks", {name: task})
+    if(result.statusResponse){
+      setError(result.error)
+      return
+    }
+
+  //  const newTask = {//creamos un tipo objeto
+  //    id: shortid.generate(),
+  //    name: task
+  //}
+
+    setTasks([ ...tasks, {id: result.data.id, name: task}])
     setTask("")
   }
 
-  const saveTask = (e) =>{
+  const saveTask = async(e) =>{
     e.preventDefault() //Para que no recargue la pagina con el submit
     if(!validForm()) {
       return
     }
+
+    const result = await updateDocument("Tasks", id, {name: task})
+    if(!result.statusResponse){
+      setError(result.error)
+      return
+    }
+
     const editedTasks = tasks.map(item => item.id === id ? {id, name: task} : item)
     setTasks(editedTasks)
     setEditMode(false)
@@ -49,7 +73,13 @@ function App() {
   }
 
   //funcion tipo flecha, la cual dice que me pinte en pantalla las tareas excepto la que se borró recientemente
-  const deleteTask = (id) => {
+  const deleteTask = async(id) => {
+    const result = await deleteDocument("Tasks", id)
+    if(!result.statusResponse){
+      setError(result.error)
+      return
+    }
+
     const filteredTasks = tasks.filter(task => task.id !== id)
     setTasks(filteredTasks)//enviamos todo lo filtrado al arreglo setTasks
   }
